@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="referrer" content="no-referrer" />
+  <meta http-equiv="Permissions-Policy" content="camera=(), microphone=(), geolocation=()" />
+  <title>公版紀錄與訊息產生器｜DC與負天數修正版</title>
+  <style>
+    :root{
+      --bg:#f4f7fb;--card:#fff;--text:#1f2937;--muted:#64748b;--line:#dbe4ee;
+      --primary:#2563eb;--primary2:#1d4ed8;--danger:#b91c1c;--ok:#047857;
+      --shadow:0 10px 28px rgba(15,23,42,.08);--radius:16px;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;font-family:system-ui,-apple-system,"Segoe UI","Noto Sans TC",sans-serif;background:var(--bg);color:var(--text)}
+    header{position:sticky;top:0;z-index:10;background:rgba(255,255,255,.94);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+    .header-inner{max-width:1400px;margin:auto;padding:14px 20px;display:flex;gap:14px;align-items:center;justify-content:space-between}
+    h1{font-size:20px;margin:0}
+    .privacy{font-size:13px;color:var(--ok);font-weight:700}
+    main{max-width:1400px;margin:20px auto;padding:0 20px 36px;display:grid;grid-template-columns:minmax(0,1.15fr) minmax(360px,.85fr);gap:20px}
+    .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow)}
+    .panel{padding:20px}
+    .notice{background:#eff6ff;border:1px solid #bfdbfe;color:#1e3a8a;padding:12px 14px;border-radius:12px;font-size:14px;margin-bottom:16px}
+    .grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+    .full{grid-column:1/-1}
+    label,.label{display:block;font-weight:700;font-size:14px;margin-bottom:6px}
+    input,select,textarea,button{font:inherit}
+    input[type="text"],input[type="date"],input[type="time"],input[type="number"],select,textarea{
+      width:100%;border:1px solid #cbd5e1;border-radius:10px;padding:10px 11px;background:white;color:var(--text)
+    }
+    textarea{min-height:88px;resize:vertical}
+    input:focus,select:focus,textarea:focus{outline:3px solid rgba(37,99,235,.14);border-color:var(--primary)}
+    .checks{display:flex;flex-wrap:wrap;gap:8px}
+    .check{display:inline-flex;align-items:center;gap:6px;border:1px solid #cbd5e1;border-radius:999px;padding:7px 10px;background:#fff;cursor:pointer;font-size:14px}
+    .check:has(input:checked){border-color:var(--primary);background:#eff6ff;color:#1d4ed8}
+    .section-title{font-size:16px;margin:22px 0 12px;padding-top:16px;border-top:1px solid var(--line)}
+    .actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:18px}
+    button{border:0;border-radius:10px;padding:10px 14px;cursor:pointer;font-weight:800}
+    .primary{background:var(--primary);color:white}.primary:hover{background:var(--primary2)}
+    .secondary{background:#e2e8f0;color:#1e293b}
+    .danger{background:#fee2e2;color:var(--danger)}
+    .preview-card{position:sticky;top:82px;align-self:start;overflow:hidden}
+    .preview-head{padding:14px 16px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between}
+    .preview{white-space:pre-wrap;min-height:360px;padding:18px;font-size:16px;line-height:1.75;background:#fcfdff}
+    .badge{font-size:12px;background:#fef3c7;color:#92400e;padding:5px 8px;border-radius:999px;font-weight:800}
+    .hidden{display:none!important}
+    .small{font-size:12px;color:var(--muted);margin-top:5px}
+    .toast{position:fixed;right:20px;bottom:20px;background:#0f172a;color:#fff;padding:12px 16px;border-radius:10px;opacity:0;transform:translateY(10px);transition:.2s;pointer-events:none}
+    .toast.show{opacity:1;transform:none}
+    details{border:1px solid var(--line);border-radius:12px;padding:10px 12px;background:#fafcff}
+    summary{cursor:pointer;font-weight:800}
+    @media(max-width:960px){main{grid-template-columns:1fr}.preview-card{position:static}.grid{grid-template-columns:1fr}.full{grid-column:auto}}
+  
+    .app-shell{max-width:1500px;margin:20px auto;padding:0 20px 36px;display:grid;grid-template-columns:250px minmax(0,1fr);gap:20px}
+    .sidebar{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:16px;align-self:start;position:sticky;top:82px}
+    .sidebar-title{font-size:13px;color:var(--muted);font-weight:800;margin:2px 0 10px}
+    .nav-list{display:flex;flex-direction:column;gap:7px}
+    .nav-btn{width:100%;text-align:left;background:#f8fafc;color:#334155;border:1px solid var(--line);padding:10px 12px;border-radius:10px;font-weight:800}
+    .nav-btn.active{background:#eff6ff;border-color:#93c5fd;color:#1d4ed8}
+    .workspace{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(360px,.85fr);gap:20px}
+    .sidebar-note{margin-top:14px;padding-top:14px;border-top:1px solid var(--line);font-size:12px;color:var(--muted);line-height:1.6}
+    @media(max-width:1100px){.app-shell{grid-template-columns:1fr}.sidebar{position:static}.nav-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.workspace{grid-template-columns:1fr}}
+    @media(max-width:620px){.nav-list{grid-template-columns:1fr}}
+
+  </style>
+</head>
+<body>
+<header>
+  <div class="header-inner">
+    <h1>公版紀錄與訊息產生器</h1>
+    <div class="privacy">🔒 本機即時產生・不儲存・不上傳</div>
+  </div>
+</header>
+
+
+<div class="app-shell">
+  <aside class="sidebar">
+    <div class="sidebar-title">功能分類</div>
+    <div id="sideNav" class="nav-list"></div>
+    <div class="sidebar-note">
+      選擇左側分類後，右側會顯示對應的紀錄或訊息表單。
+    </div>
+  </aside>
+  <main class="workspace">
+
+  <section class="card panel">
+    <div class="notice">此工具為公版範本。產生後仍應由使用者依實際情況檢查並手動調整。</div>
+
+    <div class="grid">
+      <div class="hidden">
+        <label for="category">最上層分類</label>
+        <select id="category"></select>
+      </div>
+      <div>
+        <label for="subtype">紀錄／訊息類型</label>
+        <select id="subtype"></select>
+      </div>
+      <div>
+        <label for="recordDate">紀錄日期</label>
+        <input id="recordDate" type="date">
+      </div>
+      <div>
+        <label for="recordTime">紀錄時間</label>
+        <input id="recordTime" type="time">
+      </div>
+      <div class="full">
+        <label for="recorder">紀錄者</label>
+        <input id="recorder" type="text" placeholder="例如：王小明">
+      </div>
+    </div>
+
+    <div id="dynamicForm"></div>
+
+    <div class="actions">
+      <button class="primary" id="copyBtn">複製產生內容</button>
+      <button class="secondary" id="selectBtn">全選預覽文字</button>
+      <button class="danger" id="clearBtn">清空全部</button>
+    </div>
+  </section>
+
+  <aside class="card preview-card">
+    <div class="preview-head">
+      <strong>即時預覽</strong>
+      <span class="badge">公版範本・請人工確認</span>
+    </div>
+    <div id="preview" class="preview"></div>
+  </aside>
+</main>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script>
+const diseaseOptions = ["HTN","DM","LIPID","攝護腺","貧血","肝炎","痛風","慢管","甲狀腺連處","鼻過敏連處","氣喘連處"];
+const clinicOptions = [
+  "08-7991787 北葉晨心","三和晨安","08-7707111 龍泉晨安","08-7627016 繁華晨安",
+  "08-7210110 長治晨安","08-7756111 里港晨安","08-7930111 鹽埔晨安",
+  "07-2618500 安心銘燦","07-6297707 安心俊鴻","06-5813771 善化中山","06-5813311 善化晨安"
+];
+
+const catalog = {
+  "慢性病未回診－關懷紀錄": [
+    ["未接","missed"],["尚有餘藥","remaining"],["自行中斷藥物","stopped"],
+    ["家屬接聽","family"],["就近就醫","nearby"],["傳 LINE 提醒","lineReminder"],
+    ["連處 IC02","ic02"],["連處 IC03","ic03"],["身心科","psych"],
+    ["DC 藥物／抽血 OBS／肝炎超音波","dcObs"],["腸胃科連處","gi"],
+    ["心悸／手抖／血循／PRN 或 STAT 用藥","prn"],["自費／出國備用藥物","selfPayTravel"],["一次領取多次處方簽","multiRxPickup"],["多張連處","multipleContinuousRx"],["其他項目","otherFollow"]
+  ],
+  "轉診／急性／克流感－關懷紀錄": [
+    ["轉診追蹤","referral"],["急性追蹤","acute"],["克流感追蹤","flu"]
+  ],
+  "欠卡追蹤": [["欠卡追蹤","card"]],
+  "報告追蹤": [["成健追蹤","healthExam"],["抽血異常","labAbnormal"],["未看報告","unreadReport"]],
+  "LINE／簡訊範本": [
+    ["預約 LINE","apptLine"],["預約簡訊","apptSms"],["未回 LINE－單純提醒","noReturnLine"],
+    ["未回 LINE－詢問狀態","statusLine"],["未回簡訊","noReturnSms"],
+    ["身心 LINE","psychLine"],["身心簡訊","psychSms"]
+  ]
+};
+
+const $ = s => document.querySelector(s);
+const esc = s => (s ?? "").toString().trim();
+const fmtMD = value => {
+  if(!value) return "";
+  const [y,m,d] = value.split("-");
+  return `${Number(m)}/${Number(d)}`;
+};
+const v = id => {
+  const byId = document.getElementById(id);
+  if (byId) return esc(byId.value);
+  const byName = document.querySelector(`input[name="${id}"]:checked`);
+  return esc(byName?.value);
+};
+const checked = name => [...document.querySelectorAll(`input[name="${name}"]:checked`)].map(x=>x.value);
+const phrase = (arr, sep="、") => arr.filter(Boolean).join(sep);
+const recorder = () => v("recorder") ? `(${v("recorder")})` : "";
+const dateTime = () => [fmtMD(v("recordDate")),v("recordTime")].filter(Boolean).join(" ");
+const dayPrefix = () => {
+  const n=v("days");
+  const ds=getDiseases();
+  return `(${[n ? `${n}` : "", ds].filter(Boolean).join(" ")})`;
+};
+function getDiseases(){
+  const ds=checked("disease");
+  const other=v("diseaseOther");
+  if(other) ds.push(other);
+  return phrase([...new Set(ds)]);
+}
+function field(id,label,type="text",placeholder="",extra=""){
+  return `<div class="${extra}"><label for="${id}">${label}</label><input id="${id}" type="${type}" placeholder="${placeholder}"></div>`;
+}
+function selectField(id,label,options,extra=""){
+  return `<div class="${extra}"><label for="${id}">${label}</label><select id="${id}">${options.map(o=>`<option value="${o}">${o}</option>`).join("")}</select></div>`;
+}
+function textArea(id,label,placeholder="",extra=""){
+  return `<div class="${extra}"><label for="${id}">${label}</label><textarea id="${id}" placeholder="${placeholder}"></textarea></div>`;
+}
+function radio(name,label,options,extra=""){
+  return `<div class="${extra}"><div class="label">${label}</div><div class="checks">${options.map((o,i)=>`<label class="check"><input type="radio" name="${name}" value="${o}" ${i===0?"checked":""}>${o}</label>`).join("")}</div></div>`;
+}
+function checkboxes(name,label,options,extra=""){
+  return `<div class="${extra}"><div class="label">${label}</div><div class="checks">${options.map(o=>`<label class="check"><input type="checkbox" name="${name}" value="${o}">${o}</label>`).join("")}</div></div>`;
+}
+function prnDayOnly(){
+  return `<div class="grid">
+    ${selectField("days","追蹤天數",Array.from({length:35},(_,i)=>String(-(i+1))))}
+  </div>`;
+}
+
+function baseChronic(){
+  const dayOptions=Array.from({length:35},(_,i)=>`<option value="${-(i+1)}">${-(i+1)}</option>`).join("");
+  return `<h3 class="section-title">慢性病追蹤資料</h3><div class="grid">
+    <div><label for="days">追蹤天數</label><select id="days">${dayOptions}</select></div>
+    ${checkboxes("disease","疾病／項目（可複選）",diseaseOptions,"full")}
+    ${field("diseaseOther","其他項目","text","自行填寫其他項目","full")}
+  </div>`;
+}
+function contactFields(allowBoth=false){
+  if(allowBoth){
+    return `<div class="grid">${checkboxes("person","聯絡對象（可複選）",["病人","病人家屬"])}
+      ${field("relation","家屬關係","text","例如：女兒")}
+      ${checkboxes("phoneType","聯絡方式（可複選）",["家電","手機"])}</div>`;
+  }
+  return `<div class="grid">${radio("person","聯絡對象",["病人","病人家屬"])}
+    ${field("relation","家屬關係","text","例如：女兒")}
+    ${radio("phoneType","聯絡方式",["家電","手機"])}</div>`;
+}
+function specialFields(){
+  return `<h3 class="section-title">特殊情況</h3><div class="grid">
+    ${radio("special","是否有特殊情況",["無","有"])}
+    <div id="specialBox" class="full hidden">
+      ${radio("specialType","特殊提醒",["我們休診一日","天災停班停課則休診"])}
+      <div id="closedBox">${field("closedDate","休診日期","text","例如：7/20","full")}</div>
+    </div>
+  </div>`;
+}
+function clinicField(){ return selectField("clinic","診所",clinicOptions,"full"); }
+
+const forms = {
+  missed:()=>baseChronic()+contactFields(true)+`<div class="grid">${radio("remindChannel","提醒方式",["簡訊","LINE"])}</div>`,
+  remaining:()=>baseChronic()+contactFields()+`<div class="grid">
+    ${textArea("remainingReason","有餘藥的原因","例如：先前忘記服藥、住院期間未服用等","full")}
+    ${field("remainingDays","剩餘藥物天數","number","例如：8")}
+    ${radio("remainGroup","後續追蹤",["藥物剩餘10天內","藥物剩餘大於14天"])}
+    <div id="followBox" class="hidden">${radio("followDays","預計續追蹤",["-21","-28"])}</div>
+  </div>`,
+  stopped:()=>baseChronic()+contactFields()+`<div class="grid">
+    ${radio("monitor","是否有自我監測",["無","有"])}
+    <div id="monitorBox" class="full hidden"><div class="grid">
+      ${radio("monitorType","監測項目",["血壓","血糖"])}
+      ${field("monitorValue","數值","text","例如：130/80 或 120")}
+    </div></div>
+  </div>`,
+  family:()=>baseChronic()+`<div class="grid">${field("relation","親屬關係","text","例如：女兒")}${textArea("response","回應內容","","full")}</div>`,
+  nearby:()=>baseChronic()+`<div class="grid">${textArea("reason","原因","","full")}
+    ${radio("facility","追蹤院所",["鄰近診所","醫院","機構","衛生所","已知院所名稱"])}
+    ${field("facilityName","院所名稱","text","若選已知院所名稱請填寫")}
+    ${radio("regular","是否規律回診及服藥",["有","無"])}
+  </div>`,
+  lineReminder:()=>baseChronic(),
+  ic02:()=>baseChronic()+icForm("IC02"),
+  ic03:()=>baseChronic()+icForm("IC03"),
+  psych:()=>baseChronic()+`<div class="grid">${field("openMonth","開立月份","number")}${field("openDay","開立日期","number")}</div>`,
+  dcObs:()=>baseChronic()+`<div class="grid">
+    ${field("visitMonth","就診月份","number")}${field("visitDay","就診日期","number")}
+    ${checkboxes("actions","當次處置（可複選）",["抽血","進行腹部超音波","就診"],"full")}
+
+    <div id="bloodBox" class="full hidden">
+      <div class="grid">
+        ${field("bloodItem","抽血報告項目","text","例如：HbA1c")}
+        ${field("reportMonth","看報告月份","number")}
+        ${field("reportDay","看報告日期","number")}
+        ${radio("bloodResultType","看報告後處理",["無開立藥物","討論內容"],"full")}
+        <div id="noDrugBox" class="full">${field("noDrugName","無開立的藥物","text","例如：降血脂藥物","full")}</div>
+        <div id="discussionBox" class="full hidden">${textArea("discussion","討論內容","","full")}</div>
+      </div>
+    </div>
+
+    ${checkboxes("followOptions","後續安排（可複選）",["與醫師討論後 DC 藥物","預計續追蹤"],"full")}
+    <div id="dcDrugBox" class="full hidden">${field("dcDrug","DC 藥物名稱","text","例如：某藥","full")}</div>
+    <div id="followDateBox" class="full hidden"><div class="grid">
+      ${field("followYear","預計追蹤年份","number","例如：115")}
+      ${field("followMonth","預計追蹤月份","number","例如：12")}
+    </div></div>
+  </div>`,
+  gi:()=>baseChronic()+`<div class="grid">${field("openMonth","開立月份","number")}${field("openDay","開立日期","number")}</div>`,
+  prn:()=>prnDayOnly()+`<div class="grid">${selectField("prnItem","項目",["Propranolol","concor","bokey aspirin","血循","血糖 STAT","胰島素 STAT","血壓 PRN 用藥"])}
+    ${field("visitMonth","就診月份","number")}${field("visitDay","就診日期","number")}
+    ${field("symptom","症狀","text")}${textArea("reason","原因","","full")}
+    ${field("drugDays","藥物與天數","text")}${textArea("status","追蹤狀況","","full")}
+  </div>`,
+
+  selfPayTravel:()=>baseChronic()+`<div class="grid">
+    ${field("visitMonth","就診月份","number")}${field("visitDay","就診日期","number")}
+    ${radio("needType","需求類型",["出國","個人"])}
+    ${field("item","開立項目","text","例如：慢性病備用藥物")}
+    ${field("supplyDays","開立天數","number","例如：30")}
+  </div>`,
+  multiRxPickup:()=>baseChronic()+`<div class="grid">
+    ${textArea("situation","一次領取原因／情況","","full")}
+    ${field("pickupMonth","領取月份","number")}${field("pickupDay","領取日期","number")}
+    ${selectField("rxDays","一次領取天數",["56","84","60","90"])}
+    ${field("useUntilYear","藥物可使用至－年","number","例如：115")}
+    ${field("useUntilMonth","藥物可使用至－月","number")}
+    ${field("useUntilDay","藥物可使用至－日","number")}
+  </div>`,
+  multipleContinuousRx:()=>baseChronic()+`<div class="grid">
+    ${checkboxes("icCodes","連處代碼（可複選）",["IC02","IC03"],"full")}
+    ${field("firstMonth","第一張開立月份","number")}${field("firstDay","第一張開立日期","number")}
+    ${selectField("firstDays","第一張連處天數",["56","84","60","90"])}
+    ${field("secondMonth","第二張開立月份","number")}${field("secondDay","第二張開立日期","number")}
+    ${selectField("secondDays","第二張連處天數",["56","84","60","90"])}
+    ${textArea("reminder","依情況提醒內容","","full")}
+  </div>`,
+  otherFollow:()=>`<div class="grid">${selectField("days","追蹤天數",Array.from({length:35},(_,i)=>-(i+1)))}
+    ${field("item","項目","text")}${textArea("status","追蹤情況","","full")}</div>`,
+  referral:()=>visitBase()+`<div class="grid">${textArea("situation","情況","","full")}${field("hospital","建議前往院所","text")}
+    ${field("validFrom","轉診單效期起","text","月/日")}${field("validTo","轉診單效期迄","text","月/日")}
+    ${textArea("doctorAdvice","醫師囑咐","","full")}</div>`,
+  acute:()=>visitBase()+`<div class="grid">${textArea("situation","情況","","full")}${textArea("doctorContent","醫師處置／內容","","full")}${textArea("doctorAdvice","醫師囑咐","","full")}</div>`,
+  flu:()=>visitBase()+`<div class="grid">${field("bt","BT","text","例如：38.2")}${radio("fluReason","流感條件",["家人有得流感","快篩結果","符合公費流感資格"])}
+    ${selectField("rapid","快篩結果",["A+","B+","陰性"])}${field("eligibility","資格別","text")}
+    ${field("drug","開立藥物","text")}${field("drugDays","天數","number")}
+    ${field("followMonth","續追蹤月份","number")}${field("followDay","續追蹤日期","number")}
+  </div>`,
+  card:()=>`<div class="grid">${field("visitMonth","欠卡月份","number")}${field("visitDay","欠卡日期","number")}
+    ${radio("session","診別",["早","午","晚"])}${field("refundFrom","退押金期限起","text","月/日")}${field("refundTo","退押金期限迄","text","月/日")}
+    ${textArea("status","追蹤情況","","full")}</div>`,
+  healthExam:()=>reportBase()+`<div class="grid">${selectField("code","成健代碼",["IC21","IC22","IC23","IC24","IC3D","IC3E","IC3F","IC85"])}${contactResult()}</div>`,
+  labAbnormal:()=>reportBase()+`<div class="grid">${field("abnormal","異常項目","text")}${field("doctor","醫師","text")}${contactResult()}</div>`,
+  unreadReport:()=>reportBase()+`<div class="grid">${field("testItem","檢驗套組或項目","text")}${contactResult()}</div>`,
+  apptLine:()=>messageBase(false,false)+specialFields(),
+  apptSms:()=>messageBase(true,false)+clinicField()+specialFields(),
+  noReturnLine:()=>messageBase(false,true)+specialFields(),
+  statusLine:()=>`<div class="grid">${field("name","姓名／稱呼","text")}${radio("gender","稱謂",["先生","小姐"])}
+    ${field("visitMonth","就診月份","number")}${field("visitDay","就診日期","number")}
+    ${textArea("careItem","關懷事項","","full")}</div>`+specialFields(),
+  noReturnSms:()=>messageBase(true,true)+clinicField()+specialFields(),
+  psychLine:()=>psychMessage(false),
+  psychSms:()=>psychMessage(true)+clinicField()
+};
+
+function icForm(code){
+  return `<div class="grid">${radio("contactResult","聯絡結果",["已傳 LINE 提醒病人回診領取","病人已接","病人未接","病人家屬已接","病人家屬未接"],"full")}
+    ${field("relation","家屬關係","text","例如：女兒")}
+    ${radio("responseType","接聽後回應",["一般回應內容","已於院外領取"],"full")}
+    <div id="generalResponseBox" class="full">${textArea("response","回應內容","","full")}</div>
+    <div id="outsidePickupBox" class="full hidden">${field("outsideName","院外領取地點／名稱","text","例如：鄰近診所或醫院","full")}</div>
+    ${radio("validity","連處有效期限",["無","有"])}<div id="validityBox" class="hidden">${field("validDate","有效期限","text","例如：1150716")}</div>
+  </div>`;
+}
+function visitBase(){return `<div class="grid">${radio("session","診別",["早","午","晚"])}${field("doctor","醫師門診","text","例如：王醫師")}</div>`}
+function reportBase(){return `<div class="grid">${field("sourceMonth","原檢查月份","number")}${field("sourceDay","原檢查日期","number")}</div>`}
+function contactResult(){return `${radio("contactResult","聯絡結果",["已傳 LINE 提醒病人回診","病人已接","病人未接","病人家屬已接","病人家屬未接"],"full")}${field("relation","家屬關係","text","例如：女兒")}<div id="reportResponseBox" class="full">${textArea("response","回應內容","","full")}</div>`}
+function messageBase(sms=false,noReturn=false){
+  return `<div class="grid">${field("name","姓名／稱呼","text")}${radio("gender","稱謂",["先生","小姐"])}
+    ${field("medDays",noReturn?"藥物已服用完天數":"藥物約剩餘天數","number")}
+    ${selectField("action","提醒事項",noReturn?["領取第二次處方簽","領取第三次處方簽","回診","回診抽血"]:["領取第二次處方簽","領取第三次處方簽","回診","先回診抽血"])}
+  </div>`;
+}
+function psychMessage(sms=false){
+  return `<div class="grid">${field("name","姓名／稱呼","text")}${radio("gender","稱謂",["先生","小姐"])}
+    ${field("medDays","鎮靜助眠藥物約剩餘天數","number")}
+    ${field("returnMonth","回診月份","number")}${field("returnDay","回診日期","number")}${field("doctor","醫師門診","text")}
+    ${radio("chronic","是否合併慢性病藥物",["無","有"])}
+    <div id="chronicBox" class="full hidden">${selectField("chronicAction","同時處理事項",["領取第二次處方簽","領取第三次處方簽","回診開立慢性病藥物","回診抽血並於看報告時一同開立藥物"],"full")}</div>
+  </div>`+specialFields();
+}
+
+const builders = {
+  missed:()=>`${dateTime()}${dayPrefix()} ${phrase(checked("person"),"及")} ${phrase(checked("phoneType"),"及")}未接，傳${v("remindChannel")}提醒${recorder()}。`,
+  remaining:()=>{
+    const p=v("person")==="病人家屬"?`病人${v("relation")||"家屬"}`:"病人";
+    const follow=v("remainGroup")==="藥物剩餘大於14天"?`，預計${v("followDays")}續追蹤`:"";
+    return `${dateTime()}${dayPrefix()} ${p}${v("phoneType")}已接，表示因${v("remainingReason")}尚有餘藥${v("remainingDays")}天，待藥物服用完畢會盡快回診，衛教病人應規律服藥，勿自行中斷藥物，避免影響疾病控制，請盡快撥空回診就醫${follow}${recorder()}。`;
+  },
+  stopped:()=>{
+    const p=v("person")==="病人家屬"?`病人${v("relation")||"家屬"}`:"病人";
+    let monitor="";
+    if(v("monitor")==="有"){
+      const unit=v("monitorType")==="血壓"?"mmHg":"mg/dl";
+      monitor=`目前有自我監測${v("monitorType")}習慣，數值約${v("monitorValue")}${unit}，`;
+    } else monitor="目前無自我監測習慣，";
+    return `${dateTime()}${dayPrefix()} ${p}${v("phoneType")}已接，表示病人已無服用慢性病藥物，${monitor}建議病人勿自行中斷藥物，應回診與醫師共同討論，避免影響疾病控制，請盡快撥空回診就醫${recorder()}。`;
+  },
+  family:()=>`${dateTime()}${dayPrefix()} 病人${v("relation")}已接，表示病人${v("response")}${recorder()}。`,
+  nearby:()=>{
+    const place=v("facility")==="已知院所名稱"?(v("facilityName")||"其他院所"):v("facility");
+    const advice=v("regular")==="無"?"，建議規律追蹤與定期檢查":"";
+    return `${dateTime()}${dayPrefix()}病人表示因${v("reason")}，目前於${place}追蹤，${v("regular")}規律回診及服藥${advice}${recorder()}。`;
+  },
+  lineReminder:()=>`${dateTime()}${dayPrefix()} 已傳 LINE 關心與提醒病人目前用藥情況，與提醒回診${recorder()}。`,
+  ic02:()=>icBuild("IC02"), ic03:()=>icBuild("IC03"),
+  psych:()=>`${dateTime()}${dayPrefix()}病人此慢管為${v("openMonth")}/${v("openDay")}開立之身心科用藥${recorder()}`,
+  gi:()=>`${dateTime()}${dayPrefix()}病人此連處為${v("openMonth")}/${v("openDay")}開立之腸胃科連處${recorder()}`,
+  dcObs:()=>{
+    const actions=checked("actions");
+    const acts=phrase(actions,"及");
+
+    let blood="";
+    if(actions.includes("抽血")){
+      const result=v("bloodResultType")==="討論內容"
+        ? v("discussion")
+        : `無開立${v("noDrugName")}藥物`;
+      blood=`，抽血報告：${v("bloodItem")}，於${v("reportMonth")}/${v("reportDay")}回診看報告，${result}`;
+    }
+
+    const tails=[];
+    const followOptions=checked("followOptions");
+    if(followOptions.includes("與醫師討論後 DC 藥物")){
+      tails.push(`與醫師討論後 DC ${v("dcDrug")}藥物`);
+    }
+    if(followOptions.includes("預計續追蹤")){
+      tails.push(`預計${v("followYear")}年${v("followMonth")}月續追蹤`);
+    }
+
+    const tailText=tails.length?`，${phrase(tails,"、")}`:"";
+    return `${dateTime()}${dayPrefix()} 病人於${v("visitMonth")}/${v("visitDay")}${acts}${blood}${tailText}${recorder()}。`;
+  },
+  prn:()=>`${dateTime()}(${v("days")?`${v("days")} `:""}${v("prnItem")}) 病人於${v("visitMonth")}/${v("visitDay")}就診${v("symptom")}，因${v("reason")}，因此開立${v("drugDays")}給予病人，病人${v("status")}${recorder()}。`,
+
+  selfPayTravel:()=>`${dateTime()}${dayPrefix()} 病人於${v("visitMonth")}/${v("visitDay")}因有${v("needType")}需求與醫師討論後開立${v("item")}${v("supplyDays")}天${recorder()}。`,
+  multiRxPickup:()=>`${dateTime()}${dayPrefix()}病人因${v("situation")}於${v("pickupMonth")}/${v("pickupDay")}一次領取${v("rxDays")}天連續處方簽，其藥物可使用至${v("useUntilYear")}/${v("useUntilMonth")}/${v("useUntilDay")}${recorder()}。`,
+  multipleContinuousRx:()=>`${dateTime()}(${v("days")?`${v("days")} `:""}${phrase(checked("icCodes"))} ${getDiseases()})病人分別於${v("firstMonth")}/${v("firstDay")}開立連處${v("firstDays")}天與${v("secondMonth")}/${v("secondDay")}開立連處${v("secondDays")}天，提醒病人${v("reminder")}${recorder()}。`,
+  otherFollow:()=>`${dateTime()}(${v("days")}天 ${v("item")}) 病人${v("status")}${recorder()}。`,
+  referral:()=>`${dateTime()} 病人${v("session")}診(${v("doctor")}醫師門診)，因${v("situation")}，醫師建議前往${v("hospital")}追蹤，開立轉診單乙份，效期：${v("validFrom")}至${v("validTo")}，醫師囑咐${v("doctorAdvice")}追蹤病人就醫情況${recorder()}。`,
+  acute:()=>`${dateTime()} 病人${v("session")}診(${v("doctor")}醫師門診)，因${v("situation")}，醫師${v("doctorContent")}，醫師囑咐${v("doctorAdvice")}追蹤病人後續情況${recorder()}。`,
+  flu:()=>{
+    let reason=v("fluReason");
+    if(reason==="快篩結果") reason=`快篩結果${v("rapid")}`;
+    if(reason==="符合公費流感資格") reason=`符合公費流感資格(${v("eligibility")})`;
+    return `${dateTime()} 病人${v("session")}診(${v("doctor")}醫師門診)，病人 BT${v("bt")}，${reason}，經醫師診視開立${v("drug")}${v("drugDays")}天給予病人，預計${v("followMonth")}/${v("followDay")}續追蹤${recorder()}。`;
+  },
+  card:()=>`${dateTime()}(${v("visitMonth")}/${v("visitDay")}${v("session")}診欠卡，退押金期限${v("refundFrom")}至${v("refundTo")})病人${v("status")}${recorder()}。`,
+  healthExam:()=>`${dateTime()}(${v("sourceMonth")}/${v("sourceDay")} ${v("code")}) ${reportContact()}${recorder()}。`,
+  labAbnormal:()=>`${dateTime()}(${v("sourceMonth")}/${v("sourceDay")} 抽血${v("abnormal")}) ${v("doctor")}醫師建議病人盡快回診，${reportContact()}${recorder()}。`,
+  unreadReport:()=>`${dateTime()}(${v("sourceMonth")}/${v("sourceDay")} ${v("testItem")}) ${reportContact()}${recorder()}。`,
+  apptLine:()=>messageBuild(false,false),
+  apptSms:()=>messageBuild(true,false),
+  noReturnLine:()=>messageBuild(false,true),
+  noReturnSms:()=>messageBuild(true,true),
+  statusLine:()=>`${v("name")}${v("gender")}您好，關心您於${v("visitMonth")}月${v("visitDay")}日就診時${v("careItem")}，不好意思打擾您，謝謝您。${specialText()}`,
+  psychLine:()=>psychBuild(false), psychSms:()=>psychBuild(true)
+};
+function icBuild(code){
+  let result=v("contactResult");
+  if(result.includes("家屬")) result=result.replace("家屬",v("relation")||"家屬");
+
+  const noResponseNeeded =
+    result.startsWith("已傳 LINE") ||
+    result.includes("未接");
+
+  let response="";
+  if(!noResponseNeeded){
+    if(v("responseType")==="已於院外領取"){
+      response=`，表示已於院外${v("outsideName")}領取`;
+    }else{
+      response=`，表示${v("response")}`;
+    }
+  }
+
+  const valid=v("validity")==="有"?`，連處有效期限${v("validDate")}`:"";
+  return `${dateTime()}(${v("days")?`${v("days")} `:""}${code} ${getDiseases()})${result}${response}${valid}${recorder()}`;
+}
+function reportContact(){
+  let result=v("contactResult");
+  if(result.includes("家屬")) result=result.replace("家屬",v("relation")||"家屬");
+  const pending = result.startsWith("已傳 LINE") || result.includes("未接");
+  return pending ? `${result}，待回復` : `${result}，表示${v("response")}`;
+}
+function specialText(){
+  if(v("special")!=="有") return "";
+  return v("specialType")==="我們休診一日"
+    ? `\n提醒您我們${v("closedDate")}休診一日。`
+    : `\n提醒您如地方政府因天災宣布停班停課，我們也將休診。`;
+}
+function messageBuild(sms,noReturn){
+  const days=v("medDays");
+  const intro=noReturn?`提醒您我們藥物約已服用完${days}天`:`提醒您我們藥物約還有${days}天`;
+  const thanks=noReturn?"，謝謝您。":"。謝謝您，不好意思打擾您。";
+  let text=`${v("name")}${v("gender")}您好，${intro}，提醒您近期可安排時間${v("action")}${thanks}`;
+  if(sms) text+=`\n${v("clinic")}診所關心您。`;
+  return text+specialText();
+}
+function psychBuild(sms){
+  let text=`${v("name")}${v("gender")}您好，提醒您目前鎮靜助眠藥物約還有${v("medDays")}天，提醒您可於${v("returnMonth")}月${v("returnDay")}日撥空回診${v("doctor")}醫師門診，謝謝您。`;
+  if(v("chronic")==="有") text+=`\n提醒您可同時${v("chronicAction")}。`;
+  if(sms) text+=`\n${v("clinic")}診所關心您。`;
+  return text+specialText();
+}
+
+
+function renderSideNav(){
+  const current=v("category");
+  const nav=$("#sideNav");
+  if(!nav) return;
+  nav.innerHTML=Object.keys(catalog).map(name=>
+    `<button type="button" class="nav-btn ${name===current?"active":""}" data-category="${name}">${name}</button>`
+  ).join("");
+  nav.querySelectorAll(".nav-btn").forEach(btn=>{
+    btn.addEventListener("click",()=>{
+      $("#category").value=btn.dataset.category;
+      populateSubtypes();
+      renderSideNav();
+      window.scrollTo({top:0,behavior:"smooth"});
+    });
+  });
+}
+
+
+function toggleHeaderFields(){
+  const cat=v("category");
+  const isMsg = cat==="LINE／簡訊範本";
+  const ids=["recordDate","recordTime","recorder"];
+  ids.forEach(id=>{
+    const input=document.getElementById(id);
+    if(input){
+      const wrapper=input.closest("div");
+      if(wrapper) wrapper.classList.toggle("hidden",isMsg);
+    }
+  });
+}
+
+function populateCategories(){
+  $("#category").innerHTML=Object.keys(catalog).map(x=>`<option>${x}</option>`).join("");
+  populateSubtypes();
+  renderSideNav();
+}
+function populateSubtypes(){
+  const items=catalog[v("category")]||[];
+  $("#subtype").innerHTML=items.map(([label,key])=>`<option value="${key}">${label}</option>`).join("");
+  renderForm();
+  toggleHeaderFields();
+}
+function renderForm(){
+  const key=v("subtype");
+  $("#dynamicForm").innerHTML=forms[key]?forms[key]():"";
+  bindDynamic();
+  updatePreview();
+}
+function bindDynamic(){
+  $("#dynamicForm").querySelectorAll("input,select,textarea").forEach(el=>{
+    el.addEventListener("input",()=>{syncVisibility();updatePreview()});
+    el.addEventListener("change",()=>{syncVisibility();updatePreview()});
+  });
+  syncVisibility();
+}
+function syncVisibility(){
+  const toggle=(id,show)=>{const el=document.getElementById(id);if(el)el.classList.toggle("hidden",!show)};
+  toggle("followBox",v("remainGroup")==="藥物剩餘大於14天");
+  toggle("monitorBox",v("monitor")==="有");
+  toggle("validityBox",v("validity")==="有");
+  const contactResult=v("contactResult");
+  const needsResponse=contactResult && !contactResult.startsWith("已傳 LINE") && !contactResult.includes("未接");
+  toggle("generalResponseBox",needsResponse && v("responseType")!=="已於院外領取");
+  toggle("outsidePickupBox",needsResponse && v("responseType")==="已於院外領取");
+  const reportResult=v("contactResult");
+  toggle("reportResponseBox",!!reportResult && !reportResult.startsWith("已傳 LINE") && !reportResult.includes("未接"));
+  toggle("bloodBox",checked("actions").includes("抽血"));
+  toggle("noDrugBox",v("bloodResultType")==="無開立藥物");
+  toggle("discussionBox",v("bloodResultType")==="討論內容");
+  toggle("dcDrugBox",checked("followOptions").includes("與醫師討論後 DC 藥物"));
+  toggle("followDateBox",checked("followOptions").includes("預計續追蹤"));
+  toggle("specialBox",v("special")==="有");
+  toggle("chronicBox",v("chronic")==="有");
+}
+function updatePreview(){
+  const key=v("subtype");
+  let body=builders[key]?builders[key]():"請選擇類型並填寫資料。";
+  body = body
+    .split("\n")
+    .map(line => line.replace(/[ \t]+/g, " ").trim())
+    .filter((line, index, arr) => line || (index > 0 && arr[index - 1]))
+    .join("\n")
+    .trim();
+  $("#preview").textContent=`${body}`;
+}
+function setNow(){
+  const now=new Date();
+  const local=new Date(now.getTime()-now.getTimezoneOffset()*60000);
+  $("#recordDate").value=local.toISOString().slice(0,10);
+  $("#recordTime").value=local.toTimeString().slice(0,5);
+}
+function clearAll(){
+  const cat=$("#category").value;
+  setNow();
+  $("#recorder").value="";
+  $("#category").value=cat;
+  populateSubtypes();
+}
+function toast(msg){
+  $("#toast").textContent=msg;$("#toast").classList.add("show");
+  setTimeout(()=>$("#toast").classList.remove("show"),1600);
+}
+$("#category").addEventListener("change",()=>{populateSubtypes();renderSideNav();toggleHeaderFields();});
+$("#subtype").addEventListener("change",renderForm);
+["recordDate","recordTime","recorder"].forEach(id=>$("#"+id).addEventListener("input",updatePreview));
+$("#copyBtn").addEventListener("click",async()=>{
+  try{await navigator.clipboard.writeText($("#preview").textContent);toast("已複製");}
+  catch{const r=document.createRange();r.selectNode($("#preview"));getSelection().removeAllRanges();getSelection().addRange(r);toast("已選取，請按 Ctrl+C");}
+});
+$("#selectBtn").addEventListener("click",()=>{
+  const r=document.createRange();r.selectNodeContents($("#preview"));getSelection().removeAllRanges();getSelection().addRange(r);toast("已全選預覽文字");
+});
+$("#clearBtn").addEventListener("click",()=>{if(confirm("確定要清空目前所有填寫內容嗎？"))clearAll()});
+setNow();populateCategories();toggleHeaderFields();
+</script>
+</body>
+</html>
