@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="referrer" content="no-referrer" />
   <meta http-equiv="Permissions-Policy" content="camera=(), microphone=(), geolocation=()" />
-  <title>公版紀錄與訊息產生器｜DC與負天數修正版</title>
+  <title>公版紀錄與訊息產生器｜未接家屬名稱修正版</title>
   <style>
     :root{
       --bg:#f4f7fb;--card:#fff;--text:#1f2937;--muted:#64748b;--line:#dbe4ee;
@@ -369,7 +369,12 @@ function psychMessage(sms=false){
 }
 
 const builders = {
-  missed:()=>`${dateTime()}${dayPrefix()} ${phrase(checked("person"),"及")} ${phrase(checked("phoneType"),"及")}未接，傳${v("remindChannel")}提醒${recorder()}。`,
+  missed:()=>{
+    const people=checked("person").map(item =>
+      item==="病人家屬" ? `病人${v("relation")||"家屬"}` : item
+    );
+    return `${dateTime()}${dayPrefix()} ${phrase(people,"及")} ${phrase(checked("phoneType"),"及")}未接，傳${v("remindChannel")}提醒${recorder()}。`;
+  },
   remaining:()=>{
     const p=v("person")==="病人家屬"?`病人${v("relation")||"家屬"}`:"病人";
     const follow=v("remainGroup")==="藥物剩餘大於14天"?`，預計${v("followDays")}續追蹤`:"";
@@ -445,7 +450,10 @@ const builders = {
 };
 function icBuild(code){
   let result=v("contactResult");
-  if(result.includes("家屬")) result=result.replace("家屬",v("relation")||"家屬");
+  if(result.includes("病人家屬")){
+    result=result.replace("病人家屬",`病人${v("relation")||"家屬"}`);
+  }
+  if(result.includes("家屬")) result=result.replace("病人家屬",`病人${v("relation")||"家屬"}`);
 
   const noResponseNeeded =
     result.startsWith("已傳 LINE") ||
@@ -465,7 +473,7 @@ function icBuild(code){
 }
 function reportContact(){
   let result=v("contactResult");
-  if(result.includes("家屬")) result=result.replace("家屬",v("relation")||"家屬");
+  if(result.includes("家屬")) result=result.replace("病人家屬",`病人${v("relation")||"家屬"}`);
   const pending = result.startsWith("已傳 LINE") || result.includes("未接");
   return pending ? `${result}，待回復` : `${result}，表示${v("response")}`;
 }
