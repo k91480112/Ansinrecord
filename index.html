@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="referrer" content="no-referrer" />
   <meta http-equiv="Permissions-Policy" content="camera=(), microphone=(), geolocation=()" />
-  <title>公版紀錄與訊息產生器｜未接家屬名稱修正版</title>
+  <title>護理紀錄與訊息工作站｜V4</title>
   <style>
     :root{
       --bg:#f4f7fb;--card:#fff;--text:#1f2937;--muted:#64748b;--line:#dbe4ee;
@@ -17,6 +17,23 @@
     header{position:sticky;top:0;z-index:10;background:rgba(255,255,255,.94);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
     .header-inner{max-width:1400px;margin:auto;padding:14px 20px;display:flex;gap:14px;align-items:center;justify-content:space-between}
     h1{font-size:20px;margin:0}
+    .header-subtitle{font-size:12px;color:var(--muted);margin-top:2px}
+    .workflow-bar{display:flex;align-items:center;justify-content:space-between;gap:12px;
+      padding:12px 14px;margin-bottom:16px;border:1px solid #bfdbfe;background:#eff6ff;border-radius:12px}
+    .workflow-status{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+    .status-chip{display:inline-flex;align-items:center;padding:5px 10px;border-radius:999px;
+      background:white;border:1px solid #bfdbfe;color:#1e3a8a;font-size:13px;font-weight:700}
+    .workflow-hint{font-size:12px;color:#475569}
+    .actions{position:sticky;bottom:10px;z-index:8;background:rgba(255,255,255,.96);
+      backdrop-filter:blur(8px);border:1px solid var(--line);border-radius:14px;padding:10px;
+      box-shadow:0 8px 24px rgba(15,23,42,.12)}
+    #nextPatientBtn{background:#047857;color:white;border-color:#047857;font-weight:800}
+    #nextPatientBtn:hover{background:#065f46}
+    @media(max-width:720px){
+      .workflow-bar{align-items:flex-start;flex-direction:column}
+      .actions{display:grid;grid-template-columns:1fr 1fr}
+      .actions button{width:100%}
+    }
     .privacy{font-size:13px;color:var(--ok);font-weight:700}
     main{max-width:1400px;margin:20px auto;padding:0 20px 36px;display:grid;grid-template-columns:minmax(0,1.15fr) minmax(360px,.85fr);gap:20px}
     .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow)}
@@ -63,13 +80,27 @@
     @media(max-width:1100px){.app-shell{grid-template-columns:1fr}.sidebar{position:static}.nav-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.workspace{grid-template-columns:1fr}}
     @media(max-width:620px){.nav-list{grid-template-columns:1fr}}
 
+    .template-box{margin-top:18px;padding:16px;border:1px solid var(--line);border-radius:14px;background:#f8fafc}
+    .template-box h3{margin:0 0 12px;font-size:16px}
+    .template-grid{display:grid;grid-template-columns:1.2fr 1fr;gap:12px}
+    .template-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+    .template-actions button{padding:9px 12px}
+    .template-help{margin-top:10px;color:var(--muted);font-size:12px;line-height:1.5}
+    .advanced-settings{margin-top:14px;border-top:1px dashed var(--line);padding-top:12px}
+    .advanced-settings summary{cursor:pointer;color:var(--muted);font-size:13px;font-weight:700;user-select:none}
+    .advanced-settings[open] summary{color:var(--text)}
+    @media(max-width:620px){.template-grid{grid-template-columns:1fr}}
+
   </style>
 </head>
 <body>
 <header>
   <div class="header-inner">
-    <h1>公版紀錄與訊息產生器</h1>
-    <div class="privacy">🔒 本機即時產生・不儲存・不上傳</div>
+    <div>
+      <h1>護理紀錄與訊息工作站</h1>
+      <div class="header-subtitle">連續處理模式</div>
+    </div>
+    <div class="privacy">🔒 不上傳・範本僅儲存於本機瀏覽器</div>
   </div>
 </header>
 
@@ -85,7 +116,15 @@
   <main class="workspace">
 
   <section class="card panel">
-    <div class="notice">此工具為公版範本。產生後仍應由使用者依實際情況檢查並手動調整。</div>
+    <div class="workflow-bar">
+      <div class="workflow-status">
+        <span class="status-chip" id="patientCountChip">本次已完成 0 位</span>
+        <span class="status-chip" id="sessionRecorderChip">紀錄者：未設定</span>
+      </div>
+      <div class="workflow-hint">完成一位後按「下一位病人」，疾病與病人資料會清空，日期、時間與紀錄者會保留。</div>
+    </div>
+
+    <div class="notice">產生內容後請依實際聯絡情況再次確認，再複製至紀錄系統或訊息軟體。</div>
 
     <div class="grid">
       <div class="hidden">
@@ -106,16 +145,60 @@
       </div>
       <div class="full">
         <label for="recorder">紀錄者</label>
-        <input id="recorder" type="text" placeholder="例如：王小明">
+        <input id="recorder" type="text" placeholder="例如：王小明" autocomplete="off" autocapitalize="off" spellcheck="false">
+      </div>
+      <div class="full" id="sessionControls">
+        <div class="template-actions" style="margin-top:0">
+          <button type="button" class="secondary" id="setNowBtn">更新為現在日期與時間</button>
+          <button type="button" class="secondary" id="clearRecorderBtn">清除紀錄者</button>
+        </div>
+        <div class="template-help">日期與時間會保留並可更新為現在時間；紀錄者輸入後會持續沿用，按「清除紀錄者」才會清空姓名。</div>
       </div>
     </div>
 
     <div id="dynamicForm"></div>
 
+
+    <section class="template-box">
+      <h3>常用範本</h3>
+      <div class="template-grid">
+        <div>
+          <label for="templateName">範本名稱</label>
+          <input id="templateName" type="text" placeholder="例如：未接－病人與女兒">
+        </div>
+        <div>
+          <label for="templateSelect">已儲存範本</label>
+          <select id="templateSelect"><option value="">請選擇範本</option></select>
+        </div>
+      </div>
+      <div class="template-actions">
+        <button type="button" class="primary" id="saveTemplateBtn">儲存目前範本</button>
+        <button type="button" class="secondary" id="loadTemplateBtn">套用範本</button>
+        <button type="button" class="danger" id="deleteTemplateBtn">刪除範本</button>
+      </div>
+
+      <details class="advanced-settings">
+        <summary>進階設定</summary>
+        <div class="template-actions">
+          <button type="button" class="secondary" id="exportJsonBtn">匯出範本備份</button>
+          <button type="button" class="secondary" id="importJsonBtn">匯入範本備份</button>
+          <input id="importJsonFile" type="file" accept="application/json,.json" class="hidden">
+        </div>
+        <div class="template-help">
+          此功能用於更換電腦或備份範本。匯出的檔案格式為 JSON，一般使用時不需要操作。
+        </div>
+      </details>
+
+      <div class="template-help">
+        常用範本只保存在目前瀏覽器中；紀錄日期、時間與紀錄者不會寫入範本。
+      </div>
+    </section>
+
     <div class="actions">
       <button class="primary" id="copyBtn">複製產生內容</button>
+      <button class="secondary" id="nextPatientBtn">完成並處理下一位</button>
       <button class="secondary" id="selectBtn">全選預覽文字</button>
-      <button class="danger" id="clearBtn">清空全部</button>
+      <button class="danger" id="clearBtn">清空目前表單</button>
     </div>
   </section>
 
@@ -499,6 +582,215 @@ function psychBuild(sms){
 }
 
 
+
+
+const SESSION_STORAGE_KEY = "nursing-record-builder-session-v1";
+
+function saveSessionHeader(){
+  const data={
+    recordDate:v("recordDate"),
+    recordTime:v("recordTime"),
+    recorder:v("recorder")
+  };
+  localStorage.setItem(SESSION_STORAGE_KEY,JSON.stringify(data));
+}
+
+function loadSessionHeader(){
+  try{
+    const data=JSON.parse(localStorage.getItem(SESSION_STORAGE_KEY)||"{}");
+    if(data.recordDate) $("#recordDate").value=data.recordDate;
+    if(data.recordTime) $("#recordTime").value=data.recordTime;
+    $("#recorder").value=data.recorder||"";
+  }catch{
+    $("#recorder").value="";
+  }
+}
+
+function clearRecorder(){
+  const recorder=$("#recorder");
+  const saved={
+    recordDate:v("recordDate"),
+    recordTime:v("recordTime"),
+    recorder:""
+  };
+
+  // 先更新本機儲存，再清除畫面欄位，避免舊姓名被重新載入。
+  localStorage.setItem(SESSION_STORAGE_KEY,JSON.stringify(saved));
+  recorder.value="";
+  recorder.defaultValue="";
+  recorder.removeAttribute("value");
+  recorder.blur();
+  recorder.dispatchEvent(new Event("input",{bubbles:true}));
+  recorder.dispatchEvent(new Event("change",{bubbles:true}));
+
+  // 某些瀏覽器會稍後自動填回姓名，因此再次強制清空。
+  setTimeout(()=>{
+    recorder.value="";
+    recorder.defaultValue="";
+    localStorage.setItem(SESSION_STORAGE_KEY,JSON.stringify({
+      recordDate:v("recordDate"),
+      recordTime:v("recordTime"),
+      recorder:""
+    }));
+    updatePreview();
+  },100);
+
+  updatePreview();
+  updateWorkflowStatus();
+  toast("已清除紀錄者");
+}
+
+const TEMPLATE_STORAGE_KEY = "nursing-record-builder-templates-v1";
+
+function getSavedTemplates(){
+  try{
+    const data=JSON.parse(localStorage.getItem(TEMPLATE_STORAGE_KEY)||"[]");
+    return Array.isArray(data)?data:[];
+  }catch{
+    return [];
+  }
+}
+
+function setSavedTemplates(items){
+  localStorage.setItem(TEMPLATE_STORAGE_KEY,JSON.stringify(items));
+}
+
+function collectTemplateValues(){
+  const values={};
+  document.querySelectorAll("#dynamicForm input,#dynamicForm select,#dynamicForm textarea").forEach(el=>{
+    const key=el.name||el.id;
+    if(!key) return;
+    if(el.type==="checkbox"){
+      if(!values[key]) values[key]=[];
+      if(el.checked) values[key].push(el.value);
+    }else if(el.type==="radio"){
+      if(el.checked) values[key]=el.value;
+    }else{
+      values[key]=el.value;
+    }
+  });
+  return values;
+}
+
+function applyTemplateValues(values={}){
+  document.querySelectorAll("#dynamicForm input,#dynamicForm select,#dynamicForm textarea").forEach(el=>{
+    const key=el.name||el.id;
+    if(!key) return;
+    if(el.type==="checkbox"){
+      el.checked=Array.isArray(values[key])&&values[key].includes(el.value);
+    }else if(el.type==="radio"){
+      el.checked=values[key]===el.value;
+    }else if(Object.prototype.hasOwnProperty.call(values,key)){
+      el.value=values[key]??"";
+    }
+  });
+  syncVisibility();
+  updatePreview();
+}
+
+function refreshTemplateSelect(selectedId=""){
+  const select=document.getElementById("templateSelect");
+  if(!select) return;
+  const items=getSavedTemplates();
+  select.innerHTML='<option value="">請選擇範本</option>'+items.map(item=>
+    `<option value="${item.id}">${item.name}｜${item.category}／${item.subtypeLabel}</option>`
+  ).join("");
+  if(selectedId) select.value=selectedId;
+}
+
+function makeTemplate(){
+  const category=v("category");
+  const subtype=v("subtype");
+  const subtypeLabel=(catalog[category]||[]).find(x=>x[1]===subtype)?.[0]||subtype;
+  return {
+    id:`tpl_${Date.now()}_${Math.random().toString(36).slice(2,7)}`,
+    name:v("templateName")||`${subtypeLabel}範本`,
+    category,
+    subtype,
+    subtypeLabel,
+    values:collectTemplateValues(),
+    updatedAt:new Date().toISOString()
+  };
+}
+
+function saveCurrentTemplate(){
+  const item=makeTemplate();
+  const items=getSavedTemplates();
+  const sameIndex=items.findIndex(x=>x.name===item.name);
+  if(sameIndex>=0){
+    item.id=items[sameIndex].id;
+    items[sameIndex]=item;
+  }else{
+    items.push(item);
+  }
+  setSavedTemplates(items);
+  refreshTemplateSelect(item.id);
+  toast(sameIndex>=0?"已更新同名範本":"已儲存範本");
+}
+
+function loadSelectedTemplate(){
+  const id=v("templateSelect");
+  const item=getSavedTemplates().find(x=>x.id===id);
+  if(!item){toast("請先選擇範本");return;}
+  $("#category").value=item.category;
+  populateSubtypes();
+  $("#subtype").value=item.subtype;
+  renderForm();
+  $("#templateName").value=item.name;
+  applyTemplateValues(item.values);
+  renderSideNav();
+  toggleHeaderFields();
+  toast("已套用範本");
+}
+
+function deleteSelectedTemplate(){
+  const id=v("templateSelect");
+  if(!id){toast("請先選擇範本");return;}
+  const items=getSavedTemplates();
+  const target=items.find(x=>x.id===id);
+  if(!target) return;
+  if(!confirm(`確定要刪除範本「${target.name}」嗎？`)) return;
+  setSavedTemplates(items.filter(x=>x.id!==id));
+  refreshTemplateSelect();
+  toast("已刪除範本");
+}
+
+function exportTemplatesJson(){
+  const payload={
+    schema:"nursing-record-builder-templates",
+    version:1,
+    exportedAt:new Date().toISOString(),
+    templates:getSavedTemplates()
+  };
+  const blob=new Blob([JSON.stringify(payload,null,2)],{type:"application/json"});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement("a");
+  a.href=url;
+  a.download=`護理紀錄範本_${new Date().toISOString().slice(0,10)}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+  toast("已匯出 JSON");
+}
+
+async function importTemplatesJson(file){
+  try{
+    const payload=JSON.parse(await file.text());
+    if(payload?.schema!=="nursing-record-builder-templates"||!Array.isArray(payload.templates)){
+      throw new Error("格式不符");
+    }
+    const current=getSavedTemplates();
+    const map=new Map(current.map(x=>[x.id,x]));
+    payload.templates.forEach(item=>{
+      if(item&&item.id&&item.category&&item.subtype&&item.values) map.set(item.id,item);
+    });
+    setSavedTemplates([...map.values()]);
+    refreshTemplateSelect();
+    toast(`已匯入 ${payload.templates.length} 個範本`);
+  }catch{
+    alert("JSON 格式不正確，請選擇由本工具匯出的範本檔。");
+  }
+}
+
 function renderSideNav(){
   const current=v("category");
   const nav=$("#sideNav");
@@ -528,6 +820,8 @@ function toggleHeaderFields(){
       if(wrapper) wrapper.classList.toggle("hidden",isMsg);
     }
   });
+  const controls=document.getElementById("sessionControls");
+  if(controls) controls.classList.toggle("hidden",isMsg);
 }
 
 function populateCategories(){
@@ -586,16 +880,76 @@ function updatePreview(){
 }
 function setNow(){
   const now=new Date();
-  const local=new Date(now.getTime()-now.getTimezoneOffset()*60000);
-  $("#recordDate").value=local.toISOString().slice(0,10);
-  $("#recordTime").value=local.toTimeString().slice(0,5);
+  const tw=new Intl.DateTimeFormat("sv-SE",{
+    timeZone:"Asia/Taipei",
+    year:"numeric",
+    month:"2-digit",
+    day:"2-digit",
+    hour:"2-digit",
+    minute:"2-digit",
+    hour12:false
+  }).formatToParts(now);
+
+  const get=t=>tw.find(x=>x.type===t).value;
+  $("#recordDate").value=`${get("year")}-${get("month")}-${get("day")}`;
+  $("#recordTime").value=`${get("hour")}:${get("minute")}`;
 }
+
+let completedPatientCount=0;
+
+function updateWorkflowStatus(){
+  const countChip=document.getElementById("patientCountChip");
+  const recorderChip=document.getElementById("sessionRecorderChip");
+  if(countChip) countChip.textContent=`本次已完成 ${completedPatientCount} 位`;
+  if(recorderChip) recorderChip.textContent=`紀錄者：${v("recorder")||"未設定"}`;
+}
+
+function nextPatient(){
+  const category=v("category");
+  const subtype=v("subtype");
+  const header={
+    recordDate:v("recordDate"),
+    recordTime:v("recordTime"),
+    recorder:v("recorder")
+  };
+
+  completedPatientCount+=1;
+  updateWorkflowStatus();
+
+  // 重新建立目前類型的表單，清除所有病人專屬資料，
+  // 包含疾病、家屬關係、聯絡結果、數值與回應內容。
+  $("#category").value=category;
+  populateSubtypes();
+  $("#subtype").value=subtype;
+  renderForm();
+
+  // 保留工作階段固定資料
+  $("#recordDate").value=header.recordDate;
+  $("#recordTime").value=header.recordTime;
+  $("#recorder").value=header.recorder;
+  saveSessionHeader();
+  updatePreview();
+
+  // 將畫面移回表單上方，方便直接輸入下一位
+  const form=document.getElementById("dynamicForm");
+  if(form) form.scrollIntoView({behavior:"smooth",block:"start"});
+  toast("已清空病人資料，可輸入下一位");
+}
+
 function clearAll(){
   const cat=$("#category").value;
-  setNow();
-  $("#recorder").value="";
+  const header={
+    recordDate:v("recordDate"),
+    recordTime:v("recordTime"),
+    recorder:v("recorder")
+  };
   $("#category").value=cat;
   populateSubtypes();
+  $("#recordDate").value=header.recordDate;
+  $("#recordTime").value=header.recordTime;
+  $("#recorder").value=header.recorder;
+  saveSessionHeader();
+  updatePreview();
 }
 function toast(msg){
   $("#toast").textContent=msg;$("#toast").classList.add("show");
@@ -603,7 +957,10 @@ function toast(msg){
 }
 $("#category").addEventListener("change",()=>{populateSubtypes();renderSideNav();toggleHeaderFields();});
 $("#subtype").addEventListener("change",renderForm);
-["recordDate","recordTime","recorder"].forEach(id=>$("#"+id).addEventListener("input",updatePreview));
+["recordDate","recordTime","recorder"].forEach(id=>$("#"+id).addEventListener("input",()=>{
+  saveSessionHeader();
+  updatePreview();
+}));
 $("#copyBtn").addEventListener("click",async()=>{
   try{await navigator.clipboard.writeText($("#preview").textContent);toast("已複製");}
   catch{const r=document.createRange();r.selectNode($("#preview"));getSelection().removeAllRanges();getSelection().addRange(r);toast("已選取，請按 Ctrl+C");}
@@ -611,8 +968,42 @@ $("#copyBtn").addEventListener("click",async()=>{
 $("#selectBtn").addEventListener("click",()=>{
   const r=document.createRange();r.selectNodeContents($("#preview"));getSelection().removeAllRanges();getSelection().addRange(r);toast("已全選預覽文字");
 });
-$("#clearBtn").addEventListener("click",()=>{if(confirm("確定要清空目前所有填寫內容嗎？"))clearAll()});
-setNow();populateCategories();toggleHeaderFields();
+$("#nextPatientBtn").addEventListener("click",nextPatient);
+$("#clearBtn").addEventListener("click",()=>{if(confirm("確定要清空目前表單內容嗎？紀錄者、日期與時間會保留。"))clearAll()});
+
+$("#setNowBtn").addEventListener("click",()=>{
+  setNow();
+  saveSessionHeader();
+  updatePreview();
+  toast("已更新為現在日期與時間");
+});
+$("#clearRecorderBtn").addEventListener("click",()=>{
+  if(confirm("確定要清除目前的紀錄者名稱嗎？日期與時間會繼續保留。")) clearRecorder();
+});
+$("#saveTemplateBtn").addEventListener("click",saveCurrentTemplate);
+$("#loadTemplateBtn").addEventListener("click",loadSelectedTemplate);
+$("#deleteTemplateBtn").addEventListener("click",deleteSelectedTemplate);
+$("#exportJsonBtn").addEventListener("click",exportTemplatesJson);
+$("#importJsonBtn").addEventListener("click",()=>$("#importJsonFile").click());
+$("#importJsonFile").addEventListener("change",e=>{
+  const file=e.target.files?.[0];
+  if(file) importTemplatesJson(file);
+  e.target.value="";
+});
+$("#recorder").addEventListener("input",updateWorkflowStatus);
+
+$("#templateSelect").addEventListener("change",()=>{
+  const item=getSavedTemplates().find(x=>x.id===v("templateSelect"));
+  if(item) $("#templateName").value=item.name;
+});
+
+setNow();
+loadSessionHeader();
+updateWorkflowStatus();
+populateCategories();
+toggleHeaderFields();
+refreshTemplateSelect();
+updatePreview();
 </script>
 </body>
 </html>
